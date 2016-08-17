@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>Customized chart with Chart.js</title>
+
+		<script src="/node_modules/jquery/dist/jquery.min.js"></script>
+		<script src="/node_modules/chart.js/dist/Chart.min.js"></script>
+
+		<script>
+			$(document).ready(function() {
+				var CHART_OFFSET_TOP = 30;
+				var CHART_OFFSET_RIGHT = CHART_OFFSET_TOP;
+
+				/* ajax */
+				var ratingData = [{
+					subject: 'Math',
+					color: "#03A9F4",
+					points: [{
+						season: '2012/2013',
+						y: 1,
+						works: ['Exam 12 May 2013 - 5'],
+						pointLabelText: '1',
+						rankingDirection: 'up'
+					}, {
+						season: '2013/2014',
+						y: 11,
+						works: ['Exam 12 May 2014 - 5', 'Exam 13 May 2014 - 3'],
+						pointLabelText: '11',
+						rankingDirection: 'down'
+					}, {
+						season: '2014/2015',
+						y: 11,
+						works: ['Exam 12 May 2015 - 5'],
+						pointLabelText: '11'
+					}]
+				}, {
+					subject: 'History',
+					color: "#FF5252",
+					points: [{
+						season: '2012/2013',
+						y: 100,
+						works: ['Exam 12 May 2013 - 5'],
+						pointLabelText: '100',
+						rankingDirection: 'up'
+					}, {
+						season: '2013/2014',
+						y: 121,
+						works: ['Exam 12 May 2014 - 2', 'Exam 13 May 2014 - 3'],
+						pointLabelText: '121',
+						rankingDirection: 'down'
+					}, {
+						season: '2014/2015',
+						y: 150,
+						works: ['Exam 12 May 2015 - 2'],
+						pointLabelText: '150',
+						rankingDirection: 'down'
+					}]
+				}, {
+					subject: 'English',
+					color: "#FFD740",
+					points: [{
+						season: '2012/2013',
+						y: 115,
+						works: ['Exam 12 May 2013 - 5'],
+						pointLabelText: '115',
+						rankingDirection: 'up'
+					}, {
+						season: '2013/2014',
+						y: 50,
+						works: ['Exam 12 May 2014 - 5', 'Exam 13 May 2014 - 4'],
+						pointLabelText: '50',
+						rankingDirection: 'up'
+					}, {
+						season: '2014/2015',
+						y: 30,
+						works: ['Exam 12 May 2015 - 4'],
+						pointLabelText: '30',
+						rankingDirection: 'up'
+					}]
+				}];
+				/**/
+
+				/* helpers */
+
+				//custom tooltips
+				var customTooltips = function(tooltip) {
+					// Tooltip Element
+					var tooltipEl = $('#tooltip');
+					if (!tooltipEl[0]) {
+						$('body').append('<div id="tooltip"></div>');
+						tooltipEl = $('#tooltip');
+					}
+
+					// Hide if no tooltip
+					if (!tooltip.opacity) {
+						tooltipEl.css({
+							opacity: 0
+						});
+						$('#studentsRatingChart')
+							.each(function(index, el) {
+								$(el).css('cursor', 'default');
+							});
+						return;
+					}
+					$(this._chart.canvas).css('cursor', 'pointer');
+
+					// Set caret Position
+					tooltipEl.removeClass('above below no-transform');
+					if (tooltip.yAlign) {
+						tooltipEl.addClass(tooltip.yAlign);
+					} else {
+						tooltipEl.addClass('no-transform');
+					}
+
+					// Set Text
+					if (tooltip.body) {
+						var innerHtml = tooltip.body[0].lines.join('<br>');
+						tooltipEl.html(innerHtml);
+					}
+
+					// Find Y Location on page
+					var top = tooltip.y;
+
+					var position = $(this._chart.canvas)[0].getBoundingClientRect();
+
+					// Display, position, and set styles for font
+					tooltipEl.css({
+						opacity: 1,
+						width: tooltip.width ? (tooltip.width + 'px') : 'auto',
+						left: position.left + tooltip.x + 'px',
+						top: position.top + top + 'px',
+						padding: tooltip.yPadding + 'px ' + tooltip.xPadding + 'px',
+						borderRadius: tooltip.cornerRadius + 'px'
+					});
+				};
+
+				//customized points draw function
+				var oldF = Chart.elements.Point.prototype.draw;
+				Chart.elements.Point.prototype.draw  = function() {
+					oldF.apply(this, arguments);
+
+					var x = this._view.x;
+					var y = this._view.y;
+					var chart = this._chart;
+					var ctx = this._chart.ctx;
+
+					ctx.fillStyle = '#202020';
+					ctx.font = '18px Arial';
+					var text = this._chart.config.data.datasets[this._datasetIndex].data[this._index].pointLabelText;
+					ctx.fillText(text, x, y - 20);
+
+					var rankingDirection = this._chart.config.data.datasets[this._datasetIndex].data[this._index].rankingDirection;
+					var arrow;
+					if (!rankingDirection) {
+						return;
+					}
+
+					if (rankingDirection == 'up') {
+						ctx.fillStyle = 'green';
+						arrow = '\uf176';
+					}
+					else {
+						ctx.fillStyle = 'red';
+						arrow = "\uf175";
+					}
+
+					ctx.font = '18px FontAwesome';
+					var width = ctx.measureText(text).width;
+					ctx.fillText(arrow, x + width + 5, y - 20);
+				};
+
+
+				function setDatasetData(obj) {
+					var points = [];
+					for (var i=0; i<obj.points.length; i++) {
+						points.push({
+							y: obj.points[i].y * (-1),
+							works: obj.points[i].works,
+							pointLabelText: obj.points[i].pointLabelText,
+							rankingDirection: obj.points[i].rankingDirection
+						});
+					}
+					return points;
+				}
+
+				function setDatasets(arr) {
+					var results = [];
+					for (var i=0; i<arr.length; i++) {
+						results.push({
+							label: arr[i].subject,
+							fill: false,
+							lineTension: 0,
+							backgroundColor: arr[i].color,
+							borderColor: arr[i].color,
+							pointBorderColor: arr[i].color,
+							pointBackgroundColor: arr[i].color,
+							pointHoverBackgroundColor: arr[i].color,
+							pointHoverBorderColor: arr[i].color,
+							pointRadius: 7,
+							pointHoverRadius: 10,
+							data: setDatasetData(arr[i])
+						});
+					}
+					return results;
+				}
+
+				function setLabels(arr) {
+					var results = [];
+					for (var i=0; i<arr[0].points.length; i++) {
+						results.push(arr[0].points[i].season);
+					}
+					return results;
+				}
+				/**/
+
+				var ctx = document.getElementById("studentsRatingChart").getContext("2d");
+
+				var chartOptions = {
+					title: {
+						display: true,
+						text: 'Student\'s rating',
+						fontColor: '#202020',
+						fontSize: 20
+					},
+					scales: {
+						xAxes: [{
+							ticks: {
+								fontColor: '#909090',
+								fontSize: 14
+							},
+							gridLines: {
+								//display: false
+							},
+							afterFit: function(scale) {
+								scale.width -= CHART_OFFSET_RIGHT;
+							}
+						}],
+						yAxes: [{
+							gridLines: {
+								//display: false
+							},
+							ticks: {
+								fontColor: '#909090',
+								fontSize: 14,
+								padding: 40,
+								max: -1, //rank can't be < 1
+								callback: function(value, index, values) {
+									return value*(-1); //inverted chart
+								}
+							},
+							afterFit: function(scale) {
+								scale.height -= CHART_OFFSET_TOP;
+							}
+						}]
+					},
+					tooltips: {
+						enabled: false,
+						xPadding: 15,
+						yPadding: 15,
+						cornerRadius: 0,
+						custom: customTooltips,
+						callbacks: {
+							label: function(tooltipItem, data) {
+								return data.datasets[tooltipItem.datasetIndex].data[tooltipItem.index].works;
+							}
+						}
+					},
+					legend: {
+						display: false
+					}
+				};
+
+				var chartData = {
+					labels: setLabels(ratingData),
+					datasets: setDatasets(ratingData)
+				};
+
+				var config = {
+					type: 'line',
+					data: chartData,
+					options: chartOptions
+				};
+
+				var ratingChart = new Chart(ctx, config);
+
+				var legendHolder = $('#legend');
+				legendHolder.append(ratingChart.generateLegend());
+				console.log(ratingChart.generateLegend());
+			});
+		</script>
+	</head>
+
+	<link rel="stylesheet" href="/node_modules/font-awesome/css/font-awesome.min.css">
+
+	<style>
+		.canvas-holder {
+			background-color: #fff;
+			padding: 30px;
+			width: 500px;
+			margin: 0 auto;
+			box-shadow: 0 3px 5px 0 rgba(0,0,0,0.3);
+			border: 1px solid #dbdde1;
+		}
+
+		@media screen and (min-width: 1300px) {
+			.canvas-holder {
+				width: 1000px;
+			}
+		}
+
+		#tooltip {
+			opacity: 1;
+			position: absolute;
+			-webkit-transition: all .1s ease;
+			transition: all .1s ease;
+			pointer-events: none;
+			-webkit-transform: translate(-50%, 0);
+			transform: translate(-50%, 0);
+			background: #fff;
+			color: #202020;
+			box-shadow: 0 0 5px 1px rgba(0,0,0,0.3);
+			font-family: Arial, sans-serif;
+			font-size: 14px;
+			line-height: 18px;
+		}
+
+		#legend {
+			margin-top: 20px;
+			color: #909090;
+			font-family: Arial, sans-serif;
+			font-size: 14px;
+			line-height: 18px;
+		}
+
+		#legend ul {
+			list-style: none;
+			padding: 0;
+			display: flex;
+			justify-content: center;
+		}
+
+		#legend ul li {
+			margin: 0 10px;
+		}
+
+		#legend ul li span {
+			display: inline-block;
+			width: 50px;
+			height: 3px;
+			vertical-align: middle;
+			margin-right: 5px;
+		}
+	</style>
+
+	<body>
+		<div class="canvas-holder">
+			<canvas id="studentsRatingChart" width="3" height="2"></canvas>
+
+			<div id="legend"></div>
+		</div>
+
+		<div id="tooltip"></div>
+	</body>
+</html>

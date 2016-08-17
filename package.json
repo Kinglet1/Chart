@@ -1,0 +1,23 @@
+{
+  "name": "chart",
+  "version": "1.0.0",
+  "description": "Customized chart with chart.js",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Kinglet1/Chart/issues"
+  },
+  "homepage": "https://github.com/Kinglet1/Chart#readme",
+  "dependencies": {
+    "chart.js": "^2.2.1",
+    "jquery": "^3.1.0"
+  }
+}
